@@ -1,6 +1,7 @@
 ---
-title: "Repoducible Research Project 2"
+title: "Reproducible Research Project 2"
 output: github_document
+author: John Hopkins University
 ---
 
 # Reproducible Research Project 2
