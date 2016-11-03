@@ -1,3 +1,8 @@
+---
+title: "Repoducible Research Project 2"
+output: github_document
+---
+
 # Reproducible Research Project 2
 
 ## Introduction
