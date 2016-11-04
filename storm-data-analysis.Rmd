@@ -7,6 +7,8 @@ output:
     keep_md: yes
 ---
 
+===========================================================================================================
+
 ## Synopsis
 
 The United States National Oceanic and Atmospheric Administration (NOAA) has been capturing storm event data from 1950 to present.  This is a large data set which documents the date of significant weather events, their location, their strength, and their duration.  This data set further provides estimates related to each storm's impact on the health and safety of the public by recording property damage, casualties, injuries, and more.
@@ -20,24 +22,153 @@ We will address two very important questions as we complete our analysis:
 
 ## Data Processing
 
-We will start our analysis by programatically getting this remote data source.  To maintain data integrity and repeatability of this exercise, we will get this data directly from source and not allow any manual data manipulation which is not included herein this documented analysis.
+### Set cache
 
 This is a large data souce which takes several minutes to load into memory.  We will start by enabling cache within this document so that R Studio is not forced to load the 'activity' table each and every time we start KnitR during the preparation of this document.
 
-```{r setup, include=FALSE}
+```{r setup, include=TRUE}
 knitr::opts_chunk$set(cache=TRUE)
 ```
-Now, let's download the file if we do not have a local copy, read this file into a data frame named 'activity', and then use the head() function in order to create an initial visualization of our data frame.
+
+### Get Data from Source
+
+We will start our analysis by programatically getting this remote data source.  To maintain data integrity and repeatability of this exercise, we will get this data directly from the source and not conduct any manual data manipulation which is not included herein this documented analysis.
+
+Now, let's download the file (if we do not have a local copy), read this file into a data frame named 'stormdata', and then use the head() function in order to create an initial visualization of our data frame.
 
 ```{r}
 if(!file.exists("repdata%2Fdata%2FStormData.csv.bz2")) {
     download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2", "repdata%2Fdata%2FStormData.csv.bz2")
 }
-activity <- read.csv("repdata%2Fdata%2FStormData.csv.bz2")
-head(activity, n=10)
+stormdata <- read.csv("repdata%2Fdata%2FStormData.csv.bz2")
+head(stormdata, n=10)
 ```
 
+### Data Frame Structure
+
+List the structure of this data frame.  Here we will get a count of all of the data observations, the number of variables (or columns), and the data type contained within each of the columns.  This is a very helpful step when deciding which steps will follow in order to complete our analysis and visualization.
+
+```{r}
+# List the structure of this data frame
+str(stormdata)
+
+```
+
+### Subset this data frame
+
+Let's now subset this data so that it only includes the data that we will need in order to complete our analysis.  We simply need this table reduced in size so that it only includes the following variables: EVTYPE, FATALITIES, INJURIES, PROPDMG, PROPDMGEXP, CROPDMG, CROPDMGEXP.
+
+```{r}
+# Subset this data frame and show header
+stormdataset <- stormdata[,c("EVTYPE", "FATALITIES", "INJURIES", "PROPDMG", "PROPDMGEXP", "CROPDMG", "CROPDMGEXP")]
+
+# Output the head rows of this data frame
+head(stormdataset, n=10)
+
+# Let's look at a summary of the data frame
+summary(stormdataset)
+
+```
+
+### Data Cleansing
+
+Per page 12 of the [Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf), the *Storm Data* preparer enters the storm damage in 3 significant digits (these 3 digits are recorded in the PROPDMG and CROPDMG columns).  The preparer then chooses the magnitude of these expenses in "B" billions, "M" millions, and "K" thousands.  The magnitude of the expenses are recorded in the columns PROPDMGEXP and CROPDMGEXP.
+
+We further observe from the output of the structure function above that the fields PROPDMG and CROPDMG are numeric fields.  The columns labelled PROPDMGEXP and CROPDMGEXP are factors each with some values which we now want to be able to better understand.  
+
+Let's now visualize the content of the PROPDMGEXP and CROPDMGEXP columns by outputting the unique values of each of these columns.
+
+```{r}
+# Output the unique values of PROPDMGEXP
+unique(stormdataset$PROPDMGEXP)
+
+# Output the unique values of CROPDMGEXP
+unique(stormdataset$CROPDMGEXP)
+
+```
+
+Here we confirm that the content of the PROPDMGEXP and the CROPDMGEXP fields are letter codes representing the numeric magnitude of the storm.  We observe also that there are some other codes which within these columns which are not explained within the documentation.  Further observation indicates that the frequency of occurrence of values other then 'B', 'M', 'K' or '' are rather insignificant.  We are going to choose to ignore values other than those indicated as 'B', 'M', 'K' or ''.
+
+We need to create new columns within this *stormdataset* data frame which will provide the numerical equivalent of these fields.
+
+```{r}
+# Create a function which returns a multiplication factor based on the letter code
+getFactor <- function(m) {
+    if (m == "B")
+        return(1000000)
+    else if (m == "M")
+        return(1000000)
+    else if (m == "K")
+        return(1000)
+    else if (m == "")
+        return(1)
+    else 
+        return(0)
+}
+
+# Assign two new variables which will calculate the propexpense and the cropexpense as an integer
+propexpense <- sapply(stormdataset$PROPDMGEXP, FUN=getFactor)
+cropexpense <- sapply(stormdataset$CROPDMGEXP, FUN=getFactor)
+
+# Initialize two new numeric columns within the data frame
+stormdataset$PROPEXPENSE <- stormdataset$PROPDMG * (propexpense)
+stormdataset$CROPEXPENSE <- stormdataset$CROPDMG * (cropexpense)
+
+# Output a summary of this table in order to visualize the change with the new data columns
+summary(stormdataset)
+
+```
+
+### Table Calculations
+
+It is our goal to address the two following questions:
+
+1. Across the United States, which types of events are most harmful with respect to population health?
+
+```{r}
+# Aggregate the data by event and calculate the sum of the fatalities and injuries
+fatalities <- aggregate(FATALITIES ~ EVTYPE, stormdataset, FUN = sum)
+injuries <- aggregate(INJURIES ~ EVTYPE, stormdataset, FUN = sum)
+
+# List top 10 events with highest fatalities - order in descending order
+fatalitiestop <- fatalities[order(-fatalities$FATALITIES), ][1:10, ]
+
+# List top 10 events with highest injuries - order in descending order
+injuriestop <- injuries[order(-injuries$INJURIES), ][1:10, ]
+
+# Produce bar plots for data visualization
+par(mfrow = c(1, 2), mar = c(4, 10, 2, 0), mgp = c(3, 1, 0), cex = 0.6)
+
+barplot(fatalitiestop$FATALITIES, horiz=TRUE, names.arg = fatalitiestop$EVTYPE, main = "Events with Highest Fatalities", xlab = "Number of fatalities", col = "green", las=1)
+
+barplot(injuriestop$INJURIES, horiz=TRUE, names.arg = injuriestop$EVTYPE, main = "Events with Highest Injuries", xlab = "Number of injuries", col = "red", las=1)
+
+```
+
+2. Across the United States, which types of events have the greatest economic consequences?
+
+```{r}
+# Aggregate the data by event
+propdamage <- aggregate(PROPEXPENSE ~ EVTYPE, stormdataset, FUN = sum)
+cropdamage <- aggregate(CROPEXPENSE ~ EVTYPE, stormdataset, FUN = sum)
+
+# List top 10 events with highest property damage - order in descending order
+propdamagetop <- propdamage[order(-propdamage$PROPEXPENSE), ][1:10, ]
+
+# List top 10 events with highest crop damage - order in descending order
+cropdamagetop <- cropdamage[order(-cropdamage$CROPEXPENSE), ][1:10, ]
+
+# Produce bar plots for data visualization
+par(mfrow = c(1, 2), mar = c(4, 10, 2, 0), mgp = c(3, 1, 0), cex = 0.6)
+
+barplot(propdamagetop$PROPEXPENSE/(10^9), horiz=TRUE, names.arg = propdamagetop$EVTYPE, main = "Events with Highest Property Damage", xlab = "Damage Cost ($ billions)", col = "blue", las=1)
+
+barplot(cropdamagetop$CROPEXPENSE/(10^9), horiz=TRUE, names.arg = cropdamagetop$EVTYPE, main = "Events with Highest Crop Damage", xlab = "Damage Cost ($ billions)", col = "yellow", las=1)
+
+```
 
 ## Results
+
+According to our analysis, it has been determined that the *Tornado* is the most harmful event in the United States, contributing to over 5K fatalties, 80K injuries, and over $50 billion in property damage.  Crop damage seems to be somewhat resilient to the tornado since the top 10 weather events contributing to the greatest crop damage does not include the tornado.  In fact, the weather event contributing to the greates crop damage would be a *Drought*.
 
 
