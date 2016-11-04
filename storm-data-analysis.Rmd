@@ -1,0 +1,43 @@
+---
+title: "Weather Event Analysis - NOAA Storm Database"
+author: "Jack Welch"
+date: "November 3, 2016"
+output:
+  html_document:
+    keep_md: yes
+---
+
+## Synopsis
+
+The United States National Oceanic and Atmospheric Administration (NOAA) has been capturing storm event data from 1950 to present.  This is a large data set which documents the date of significant weather events, their location, their strength, and their duration.  This data set further provides estimates related to each storm's impact on the health and safety of the public by recording property damage, casualties, injuries, and more.
+
+We are going to conduct an important reproducible research exercise whereby we will programatically get this data, manipulate it where necessary in order to prepare for analysis, and we will then conduct a few data mining techniques which will allow us to analyze; and, most importantly, visualize the results of our analysis related to the severe weather events here in the United States.
+
+We will address two very important questions as we complete our analysis:
+
+1. Across the United States, which types of events are most harmful with respect to population health?
+2. Across the United States, which types of events have the greatest economic consequences?
+
+## Data Processing
+
+We will start our analysis by programatically getting this remote data source.  To maintain data integrity and repeatability of this exercise, we will get this data directly from source and not allow any manual data manipulation which is not included herein this documented analysis.
+
+This is a large data souce which takes several minutes to load into memory.  We will start by enabling cache within this document so that R Studio is not forced to load the 'activity' table each and every time we start KnitR during the preparation of this document.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache=TRUE)
+```
+Now, let's download the file if we do not have a local copy, read this file into a data frame named 'activity', and then use the head() function in order to create an initial visualization of our data frame.
+
+```{r}
+if(!file.exists("repdata%2Fdata%2FStormData.csv.bz2")) {
+    download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2", "repdata%2Fdata%2FStormData.csv.bz2")
+}
+activity <- read.csv("repdata%2Fdata%2FStormData.csv.bz2")
+head(activity, n=10)
+```
+
+
+## Results
+
+
